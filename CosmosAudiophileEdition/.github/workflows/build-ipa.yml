@@ -1,0 +1,94 @@
+name: Build Cosmos Audiophile IPA
+
+# Runs on every push to main, OR when you click "Run workflow" on GitHub
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14          # Free Apple Silicon Mac runner provided by GitHub
+
+    steps:
+
+      # 1 — Download your repo code onto the runner
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # 2 — Install the Ruby gem that can edit Xcode project files
+      - name: Install xcodeproj gem
+        run: gem install xcodeproj --no-document
+
+      # 3 — Add all new Swift files into the Xcode project automatically
+      - name: Add New Swift Files to Xcode Project
+        run: ruby add_files_to_project.rb
+
+      # 4 — Use Xcode 15 (supports iOS 17 + Swift 5.9)
+      - name: Select Xcode 15
+        run: sudo xcode-select -s /Applications/Xcode_15.4.app
+
+      # 5 — Let Xcode download any Swift Package dependencies (AudioKit, etc.)
+      - name: Resolve Swift Package Dependencies
+        run: |
+          PROJECT=$(find . -name '*.xcodeproj' -not -path '*/DerivedData/*' | head -1)
+          WORKSPACE=$(find . -name '*.xcworkspace' -not -path '*/DerivedData/*' -not -path '*.xcodeproj/*' | head -1)
+
+          if [ -n "$WORKSPACE" ]; then
+            echo "Using workspace: $WORKSPACE"
+            xcodebuild -resolvePackageDependencies -workspace "$WORKSPACE" -scheme "$(basename "${WORKSPACE%.xcworkspace}")"
+          else
+            echo "Using project: $PROJECT"
+            xcodebuild -resolvePackageDependencies -project "$PROJECT"
+          fi
+
+      # 6 — Build the app for iPhone (unsigned — AltStore/TrollStore will sign it)
+      - name: Build App (Unsigned Release)
+        run: |
+          PROJECT=$(find . -name '*.xcodeproj' -not -path '*/DerivedData/*' | head -1)
+          WORKSPACE=$(find . -name '*.xcworkspace' -not -path '*/DerivedData/*' -not -path '*.xcodeproj/*' | head -1)
+          SCHEME=$(basename "${PROJECT%.xcodeproj}")
+
+          BUILD_CMD="xcodebuild \
+            -scheme \"$SCHEME\" \
+            -sdk iphoneos \
+            -configuration Release \
+            CODE_SIGN_IDENTITY=\"\" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            -derivedDataPath ./DerivedData \
+            clean build"
+
+          if [ -n "$WORKSPACE" ]; then
+            eval "$BUILD_CMD -workspace \"$WORKSPACE\""
+          else
+            eval "$BUILD_CMD -project \"$PROJECT\""
+          fi
+
+      # 7 — Package the .app into an installable .ipa file
+      - name: Package as IPA
+        run: |
+          APP=$(find ./DerivedData -name '*.app' -path '*/Release-iphoneos/*' | head -1)
+          echo "Packaging: $APP"
+          mkdir -p Payload
+          cp -r "$APP" Payload/
+          zip -r CosmosAudiophile.ipa Payload/
+          echo "IPA size: $(du -sh CosmosAudiophile.ipa | cut -f1)"
+
+      # 8 — Upload the IPA so you can download it from GitHub
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: CosmosAudiophile-IPA
+          path: CosmosAudiophile.ipa
+          retention-days: 30        # Available for 30 days
+
+      # 9 — Also upload build logs if something fails
+      - name: Upload Build Logs (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs
+          path: |
+            DerivedData/Logs/
+            *.log
