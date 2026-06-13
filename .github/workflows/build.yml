@@ -28,12 +28,6 @@ jobs:
           # Use the default Xcode version provided by the runner
           xcodebuild -version
 
-      - name: Integrate Audiophile Files
-        run: |
-          if [ -f "CosmosAudiophileEdition/add_files_to_project.rb" ]; then
-            ruby CosmosAudiophileEdition/add_files_to_project.rb
-          fi
-
       - name: Build Application
         run: |
           xcodebuild clean build \
