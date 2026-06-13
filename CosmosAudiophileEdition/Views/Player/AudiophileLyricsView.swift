@@ -1,4 +1,4 @@
-// LyricsView.swift — Cosmos Audiophile Edition
+// AudiophileLyricsView.swift — Cosmos Audiophile Edition
 // Reads embedded ID3 USLT/SYLT lyrics from the current track's audio file
 // OR loads a sidecar .lrc/.txt file with the same name.
 // Shows synchronized line highlighting when timing data is available.
@@ -106,7 +106,7 @@ final class LyricsLoader: ObservableObject {
 
 // MARK: - Lyrics View
 
-struct LyricsView: View {
+struct AudiophileLyricsView: View {
 
     @ObservedObject var loader:  LyricsLoader
     var elapsed: Double           // current playback position
@@ -179,5 +179,5 @@ struct LyricsView: View {
     ]
     loader.isLoaded  = true
     loader.hasTiming = true
-    return LyricsView(loader: loader, elapsed: 10)
+    return AudiophileLyricsView(loader: loader, elapsed: 10)
 }
