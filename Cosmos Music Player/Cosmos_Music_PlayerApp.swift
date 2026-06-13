@@ -73,6 +73,14 @@ struct Cosmos_Music_PlayerApp: App {
     @StateObject private var appCoordinator = AppCoordinator.shared
     
     var body: some Scene {
+        // Add this at the top of the struct:
+@StateObject private var env = AppEnvironment()
+
+// Change WindowGroup content to:
+WindowGroup {
+    ContentViewAudiophile()
+        .environmentObject(env)
+}
         WindowGroup {
             ContentView()
                 .environmentObject(appCoordinator)
